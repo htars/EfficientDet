@@ -194,7 +194,8 @@ def filter_detections(
         # perform per class filtering
         for c in range(int(classification.shape[1])):
             scores = classification[:, c]
-            labels = c * tf.ones((keras.backend.shape(scores)[0],), dtype='int64')
+            #labels = c * tf.ones((keras.backend.shape(scores)[0],), dtype='int64')
+            labels = c * tf.ones((scores.shape[0],), dtype=tf.int64)
             all_indices.append(_filter_detections(scores, labels))
 
         # concatenate indices to single tensor

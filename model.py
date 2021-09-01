@@ -352,7 +352,8 @@ class BoxNet(models.Model):
             feature = self.relu(feature)
         outputs = self.head(feature)
         outputs = self.reshape(outputs)
-        self.level += 1
+        #self.level += 1
+        self.level = self.level + 1 if self.level < 4 else 0
         return outputs
 
 
@@ -412,7 +413,8 @@ class ClassNet(models.Model):
         outputs = self.head(feature)
         outputs = self.reshape(outputs)
         outputs = self.activation(outputs)
-        self.level += 1
+        # self.level += 1
+        self.level = self.level + 1 if self.level < 4 else 0
         return outputs
 
 

@@ -294,86 +294,118 @@ def parse_args(args):
 
 def main(args=None):
     # parse arguments
-    if args is None:
-        args = sys.argv[1:]
-    args = parse_args(args)
+    # if args is None:
+    #     args = sys.argv[1:]
+    # args = parse_args(args)
 
     # create the generators
-    train_generator, validation_generator = create_generators(args)
+    # train_generator, validation_generator = create_generators(args)
+    from generators.pascal import PascalVocGenerator
+    train_generator = PascalVocGenerator(
+        "/Users/hiyama/Work/datasets/VOCdevkit/VOC2012/",
+        "train",
+        phi=1,
+        skip_difficult=True,
+        batch_size=1,
+        misc_effect=None,
+        visual_effect=None,
+    )
 
     num_classes = train_generator.num_classes()
     num_anchors = train_generator.num_anchors
 
     # optionally choose specific GPU
-    if args.gpu:
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    # if args.gpu:
+    #     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
     # K.set_session(get_session())
 
-    model, prediction_model = efficientdet(args.phi,
+    # model, prediction_model = efficientdet(args.phi,
+    #                                        num_classes=num_classes,
+    #                                        num_anchors=num_anchors,
+    #                                        weighted_bifpn=args.weighted_bifpn,
+    #                                        freeze_bn=args.freeze_bn,
+    #                                        detect_quadrangle=args.detect_quadrangle
+    #                                        )
+    model, prediction_model = efficientdet(1,
                                            num_classes=num_classes,
                                            num_anchors=num_anchors,
-                                           weighted_bifpn=args.weighted_bifpn,
-                                           freeze_bn=args.freeze_bn,
-                                           detect_quadrangle=args.detect_quadrangle
+                                           weighted_bifpn=False, # Trueにするとローカルだと学習始まらない
+                                           freeze_bn=True,
+                                           detect_quadrangle=False,
                                            )
+    
     # load pretrained weights
-    if args.snapshot:
-        if args.snapshot == 'imagenet':
-            model_name = 'efficientnet-b{}'.format(args.phi)
-            file_name = '{}_weights_tf_dim_ordering_tf_kernels_autoaugment_notop.h5'.format(model_name)
-            file_hash = WEIGHTS_HASHES[model_name][1]
-            weights_path = keras.utils.get_file(file_name,
-                                                BASE_WEIGHTS_PATH + file_name,
-                                                cache_subdir='models',
-                                                file_hash=file_hash)
-            model.load_weights(weights_path, by_name=True)
-        else:
-            print('Loading model, this may take a second...')
-            model.load_weights(args.snapshot, by_name=True)
+    # if args.snapshot:
+    #     if args.snapshot == 'imagenet':
+    #         model_name = 'efficientnet-b{}'.format(args.phi)
+    #         file_name = '{}_weights_tf_dim_ordering_tf_kernels_autoaugment_notop.h5'.format(model_name)
+    #         file_hash = WEIGHTS_HASHES[model_name][1]
+    #         weights_path = keras.utils.get_file(file_name,
+    #                                             BASE_WEIGHTS_PATH + file_name,
+    #                                             cache_subdir='models',
+    #                                             file_hash=file_hash)
+    #         model.load_weights(weights_path, by_name=True)
+    #     else:
+    #         print('Loading model, this may take a second...')
+    #         model.load_weights(args.snapshot, by_name=True)
 
     # freeze backbone layers
-    if args.freeze_backbone:
-        # 227, 329, 329, 374, 464, 566, 656
-        for i in range(1, [227, 329, 329, 374, 464, 566, 656][args.phi]):
-            model.layers[i].trainable = False
+    # if args.freeze_backbone:
+    #     # 227, 329, 329, 374, 464, 566, 656
+    #     for i in range(1, [227, 329, 329, 374, 464, 566, 656][args.phi]):
+    #         model.layers[i].trainable = False
+    # 227, 329, 329, 374, 464, 566, 656
+    for i in range(1, [227, 329, 329, 374, 464, 566, 656][1]):
+        model.layers[i].trainable = False
 
-    if args.gpu and len(args.gpu.split(',')) > 1:
-        model = keras.utils.multi_gpu_model(model, gpus=list(map(int, args.gpu.split(','))))
+    # if args.gpu and len(args.gpu.split(',')) > 1:
+    #     model = keras.utils.multi_gpu_model(model, gpus=list(map(int, args.gpu.split(','))))
 
     # compile model
+    # model.compile(optimizer=Adam(lr=1e-3), loss={
+    #     'regression': smooth_l1_quad() if args.detect_quadrangle else smooth_l1(),
+    #     'classification': focal()
+    # }, )
     model.compile(optimizer=Adam(lr=1e-3), loss={
-        'regression': smooth_l1_quad() if args.detect_quadrangle else smooth_l1(),
+        'regression': smooth_l1(),
         'classification': focal()
     }, )
 
     # print(model.summary())
 
     # create the callbacks
-    callbacks = create_callbacks(
-        model,
-        prediction_model,
-        validation_generator,
-        args,
-    )
+    # callbacks = create_callbacks(
+    #     model,
+    #     prediction_model,
+    #     validation_generator,
+    #     args,
+    # )
 
-    if not args.compute_val_loss:
-        validation_generator = None
-    elif args.compute_val_loss and validation_generator is None:
-        raise ValueError('When you have no validation data, you should not specify --compute-val-loss.')
+    # if not args.compute_val_loss:
+    #     validation_generator = None
+    # elif args.compute_val_loss and validation_generator is None:
+    #     raise ValueError('When you have no validation data, you should not specify --compute-val-loss.')
 
     # start training
+    # return model.fit_generator(
+    #     generator=train_generator,
+    #     steps_per_epoch=args.steps,
+    #     initial_epoch=0,
+    #     epochs=args.epochs,
+    #     verbose=1,
+    #     callbacks=callbacks,
+    #     workers=args.workers,
+    #     use_multiprocessing=args.multiprocessing,
+    #     max_queue_size=args.max_queue_size,
+    #     validation_data=validation_generator
+    # )
     return model.fit_generator(
         generator=train_generator,
-        steps_per_epoch=args.steps,
+        steps_per_epoch=100,
         initial_epoch=0,
-        epochs=args.epochs,
+        epochs=3,
         verbose=1,
-        callbacks=callbacks,
-        workers=args.workers,
-        use_multiprocessing=args.multiprocessing,
-        max_queue_size=args.max_queue_size,
-        validation_data=validation_generator
     )
 
 
